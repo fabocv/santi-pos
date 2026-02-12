@@ -8,12 +8,13 @@ import {
   inject,
   signal,
   effect,
-  computed
+  computed,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProductService } from '../../core/services/product.service';
 import { Product } from '../../core/models/pos.model';
+import JsBarcode from 'jsbarcode';
 
 interface CartItem {
   product: Product;
@@ -47,10 +48,19 @@ interface VoucherData {
   styles: [
     `
       /* Scrollbar oscuro personalizado */
-      ::-webkit-scrollbar { width: 8px; }
-      ::-webkit-scrollbar-track { background: #0f172a; }
-      ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-      ::-webkit-scrollbar-thumb:hover { background: #475569; }
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #0f172a;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #334155;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #475569;
+      }
 
       /* EFECTO DE FOCO EN LA LISTA */
       tr:focus {
@@ -63,9 +73,20 @@ interface VoucherData {
 
       /* ESTILOS DE IMPRESIÓN (58mm) */
       @media print {
-        @page { margin: 0; size: 58mm auto; }
-        body * { visibility: hidden; height: 0; overflow: hidden; }
-        #printableArea, #printableArea * { visibility: visible; height: auto; }
+        @page {
+          margin: 0;
+          size: 58mm auto;
+        }
+        body * {
+          visibility: hidden;
+          height: 0;
+          overflow: hidden;
+        }
+        #printableArea,
+        #printableArea * {
+          visibility: visible;
+          height: auto;
+        }
         #printableArea {
           position: absolute;
           left: 0;
@@ -77,14 +98,16 @@ interface VoucherData {
           color: black;
           background: white;
         }
-        .no-print { display: none !important; }
+        .no-print {
+          display: none !important;
+        }
       }
     `,
   ],
 })
 export class PosComponent {
   private productService = inject(ProductService);
-  
+
   // Referencias DOM
   @ViewChild('confirmBtn') confirmBtn!: ElementRef;
   @ViewChild('paymentInput') paymentInput!: ElementRef;
@@ -122,15 +145,16 @@ export class PosComponent {
   // Estados de Modales
   itemIndexToDelete = signal<number | null>(null);
   showCheckout = signal(false);
-  
+
   // Estado del Checkout
   paymentAmount = signal<number | null>(null);
   lastVoucher = signal<VoucherData | null>(null);
 
   // Computado: Vuelto (Cambio)
-  roundedTotal = computed(() => {    
-    const rawTotal = this.sales()[this.activeSaleIndex()].total;    
-    return Math.round(rawTotal / 10) * 10;  });
+  roundedTotal = computed(() => {
+    const rawTotal = this.sales()[this.activeSaleIndex()].total;
+    return Math.round(rawTotal / 10) * 10;
+  });
 
   changeAmount = computed(() => {
     const pay = this.paymentAmount() || 0;
@@ -149,13 +173,13 @@ export class PosComponent {
     // --- TECLA (+): ESCAPE GLOBAL ---
     if (key === '+') {
       event.preventDefault();
-      
+
       // 1. Cerrar modal borrar
       if (this.itemIndexToDelete() !== null) {
         this.cancelDelete();
         return;
       }
-      
+
       // 2. Cerrar modal checkout
       if (this.showCheckout()) {
         this.closeCheckout();
@@ -210,7 +234,7 @@ export class PosComponent {
   }
 
   activateSaleIndex(i: number) {
-    if ([0,1].includes(i) ) this.activeSaleIndex.set(i);
+    if ([0, 1].includes(i)) this.activeSaleIndex.set(i);
   }
 
   finalizeSale() {
@@ -219,29 +243,29 @@ export class PosComponent {
     const payment = this.paymentAmount() || 0;
 
     // Validación simple
-    if (payment < finalTotal) return; 
+    if (payment < finalTotal) return;
 
     // 1. Preparar datos para el ticket
     const currentItems = [...this.sales()[this.activeSaleIndex()].items];
     const voucher: VoucherData = {
       items: currentItems,
-      subtotal: rawTotal,      
+      subtotal: rawTotal,
       roundingDiff: finalTotal - rawTotal,
       total: finalTotal,
       payment: payment,
       change: payment - finalTotal,
       date: new Date(),
-      id: Date.now() // ID simple basado en tiempo
+      id: Date.now(), // ID simple basado en tiempo
     };
     this.lastVoucher.set(voucher);
 
     // 2. Limpiar la venta actual
-    this.sales.update(curr => {
+    this.sales.update((curr) => {
       const newSales = [...curr] as [SaleSession, SaleSession];
-      newSales[this.activeSaleIndex()] = { 
-        id: newSales[this.activeSaleIndex()].id, 
-        items: [], 
-        total: 0 
+      newSales[this.activeSaleIndex()] = {
+        id: newSales[this.activeSaleIndex()].id,
+        items: [],
+        total: 0,
       };
       return newSales;
     });
@@ -250,6 +274,23 @@ export class PosComponent {
     this.showCheckout.set(false);
     this.focusCodeInput();
 
+    setTimeout(() => {
+      try {
+        JsBarcode('#barcode', voucher.id.toString(), {
+          format: 'CODE128',
+          lineColor: '#000000',
+          width: 2,
+          height: 40,
+          displayValue: true, // Muestra el número abajo
+          fontSize: 10,
+          margin: 0,
+        });
+      } catch (err) {
+        console.error('Error generando código de barras', err);
+      }
+      window.print();
+    }, 100);
+
     // 4. Imprimir (Pequeño delay para que Angular renderice el ticket oculto)
     setTimeout(() => {
       window.print();
@@ -257,7 +298,7 @@ export class PosComponent {
   }
 
   // ... (El resto de funciones: sanitizeInput, onCodeEnter, onWeightEnter, switchSaleTab, cycleFocusUp, confirmDelete... se mantienen IGUAL que tu versión anterior) ...
-  
+
   // Re-incluyo las esenciales por si acaso:
   sanitizeInput(field: 'code' | 'weight', value: any) {
     if (!value) return;
@@ -300,7 +341,7 @@ export class PosComponent {
       return newSales;
     });
   }
-  
+
   onRowKeydown(event: KeyboardEvent, index: number) {
     if (event.key === 'Enter') {
       event.preventDefault();
