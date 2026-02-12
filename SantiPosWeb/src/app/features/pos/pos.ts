@@ -33,8 +33,9 @@ interface VoucherData {
   items: CartItem[];
   subtotal: number;
   roundingDiff: number;
-  total: number;
-  payment: number;
+  totalToPay: number;
+  paymentCash: number;
+  paymentCard: number;
   change: number;
   date: Date;
   id: number;
@@ -139,7 +140,7 @@ export class PosComponent {
   ]);
 
   currentCode = signal('');
-  currentWeight = signal<number | null>(null);
+  currentWeight = signal<number>(0);
   foundProduct = signal<Product | null>(null);
 
   // Estados de Modales
@@ -147,7 +148,7 @@ export class PosComponent {
   showCheckout = signal(false);
 
   // Estado del Checkout
-  paymentAmount = signal<number | null>(null);
+  paymentCashInput = signal<number>(0);
   lastVoucher = signal<VoucherData | null>(null);
 
   // Computado: Vuelto (Cambio)
@@ -156,10 +157,19 @@ export class PosComponent {
     return Math.round(rawTotal / 10) * 10;
   });
 
+  // 3. ¿Cubre el efectivo todo el monto?
+  isFullCashPayment = computed(() => {
+    return this.paymentCashInput() >= this.roundedTotal();
+  });
+
   changeAmount = computed(() => {
-    const pay = this.paymentAmount() || 0;
-    const totalToPay = this.roundedTotal(); // Usamos el redondeado
-    return pay - totalToPay;
+    const rawTotal = this.sales()[this.activeSaleIndex()].total;
+    const prePay = this.paymentCashInput() - this.roundedTotal();
+    return this.paymentCashInput() > 0 ? 
+      prePay >= 0?
+        prePay:
+        this.paymentCashInput() - rawTotal
+      : rawTotal;
   });
 
   private lastKey: string = '';
@@ -219,9 +229,18 @@ export class PosComponent {
 
   // --- LOGICA CHECKOUT & IMPRESION ---
   openCheckout() {
-    this.paymentAmount.set(null);
+    this.paymentCashInput.set(0);
     this.showCheckout.set(true);
   }
+
+  rawTotal = computed(() => this.sales()[this.activeSaleIndex()].total);
+
+  cardAmountToPay = computed(() => {
+    const cash = this.paymentCashInput();
+    const total = this.rawTotal();
+    if (cash >= this.roundedTotal()) return 0;
+    return Math.max(0, total - cash);
+  });
 
   closeCheckout() {
     this.showCheckout.set(false);
@@ -229,8 +248,15 @@ export class PosComponent {
   }
 
   updatePayment(value: string) {
-    const clean = value.replace(/[^0-9]/g, '');
-    this.paymentAmount.set(clean ? parseInt(clean, 10) : null);
+    let clean = value.replace(/[^0-9]/g, '');
+    if (clean.length > 5) {
+      clean = clean.slice(0, 5);
+    }
+    const num = clean ? parseInt(clean, 10) : 0;
+    this.paymentCashInput.set(num);
+    if (this.paymentInput && this.paymentInput.nativeElement.value !== clean) {
+      this.paymentInput.nativeElement.value = clean;
+    }
   }
 
   activateSaleIndex(i: number) {
@@ -238,24 +264,41 @@ export class PosComponent {
   }
 
   finalizeSale() {
-    const rawTotal = this.sales()[this.activeSaleIndex()].total;
-    const finalTotal = this.roundedTotal();
-    const payment = this.paymentAmount() || 0;
+    const rawTotal = this.rawTotal();
+    const cash = this.paymentCashInput();
 
-    // Validación simple
-    if (payment < finalTotal) return;
+    let finalTotalToPay = 0;
+    let roundingDiff = 0;
+    let payCard = 0;
+    let change = 0;
+
+    if (this.isFullCashPayment()) {
+      // CASO: PAGO TOTAL EFECTIVO (Con Redondeo)
+      finalTotalToPay = this.roundedTotal();
+      roundingDiff = finalTotalToPay - rawTotal;
+      payCard = 0;
+      change = cash - finalTotalToPay;
+    } else {
+      // CASO: MIXTO O TARJETA (Sin Redondeo en el total, Tarjeta cubre diferencia)
+      finalTotalToPay = rawTotal; // El total legal es el exacto
+      roundingDiff = 0; // No hay redondeo
+      payCard = rawTotal - cash;
+      change = 0;
+    }
 
     // 1. Preparar datos para el ticket
     const currentItems = [...this.sales()[this.activeSaleIndex()].items];
+    const voucherId = Date.now();
     const voucher: VoucherData = {
       items: currentItems,
       subtotal: rawTotal,
-      roundingDiff: finalTotal - rawTotal,
-      total: finalTotal,
-      payment: payment,
-      change: payment - finalTotal,
+      roundingDiff: roundingDiff,
+      totalToPay: finalTotalToPay,
+      paymentCash: cash,
+      paymentCard: payCard,
+      change: change,
       date: new Date(),
-      id: Date.now(), // ID simple basado en tiempo
+      id: voucherId,
     };
     this.lastVoucher.set(voucher);
 
@@ -297,14 +340,21 @@ export class PosComponent {
     }, 100);
   }
 
-  // ... (El resto de funciones: sanitizeInput, onCodeEnter, onWeightEnter, switchSaleTab, cycleFocusUp, confirmDelete... se mantienen IGUAL que tu versión anterior) ...
-
-  // Re-incluyo las esenciales por si acaso:
-  sanitizeInput(field: 'code' | 'weight', value: any) {
-    if (!value) return;
-    const cleanValue = value.toString().replace(/[^0-9]/g, '');
-    if (field === 'code') this.currentCode.set(cleanValue);
-    else this.currentWeight.set(cleanValue ? parseInt(cleanValue, 10) : null);
+  sanitizeInput(field: 'code' | 'weight', value: any, digits: number) {
+    if (!value) {
+      if (field === 'code') this.currentCode.set('');
+      else this.currentWeight.set(0);
+      return;
+    }
+    let cleanValue = value.toString().replace(/[^0-9]/g, '0');
+    if (cleanValue.length > digits) {
+      cleanValue = cleanValue.slice(0, digits);
+    }
+    if (field === 'code') {
+      this.currentCode.set(cleanValue);
+    } else {
+      this.currentWeight.set(cleanValue ? parseInt(cleanValue, 10) : 0);
+    }
   }
 
   onCodeEnter() {
@@ -327,6 +377,10 @@ export class PosComponent {
       this.resetForm();
       this.focusCodeInput();
     }
+  }
+
+  tarjetaVuelto(value: number) {
+    return Math.abs(value);
   }
 
   addItemToCurrentSale(product: Product, weight: number) {
@@ -378,7 +432,7 @@ export class PosComponent {
 
   resetForm() {
     this.currentCode.set('');
-    this.currentWeight.set(null);
+    this.currentWeight.set(0);
     this.foundProduct.set(null);
   }
 

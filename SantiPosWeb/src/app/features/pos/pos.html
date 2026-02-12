@@ -47,7 +47,8 @@
           #codeInput
           type="text"
           [ngModel]="currentCode()"
-          (input)="sanitizeInput('code', codeInput.value)"
+          (input)="sanitizeInput('code', codeInput.value, 3)"
+          maxlength="3"
           (keydown.enter)="onCodeEnter()"
           class="w-full text-3xl font-mono p-2 border-b-2 border-slate-600 focus:border-blue-500 outline-none bg-transparent text-center text-white placeholder-slate-700 transition-colors"
           placeholder="#"
@@ -78,7 +79,8 @@
           #weightInput
           type="text"
           [ngModel]="currentWeight()"
-          (input)="sanitizeInput('weight', weightInput.value)"
+          (input)="sanitizeInput('weight', weightInput.value, 5)"
+          maxlength="5"
           (keydown.enter)="onWeightEnter()"
           [disabled]="!foundProduct()"
           class="w-full text-3xl font-mono p-2 border-b-2 border-slate-600 focus:border-green-500 outline-none bg-transparent text-right text-white disabled:opacity-20 placeholder-slate-700 transition-colors"
@@ -196,7 +198,7 @@
             (click)="cancelDelete()"
             class="bg-slate-800 hover:bg-slate-700 text-slate-300 py-3 rounded-lg border border-slate-700 active:translate-y-0.5 transition-all"
           >
-            <div class="font-black text-sm">+ / ESC</div>
+            <div class="font-black text-sm">( + )</div>
             <div class="text-[10px] opacity-60 uppercase font-bold">Cancelar</div>
           </button>
         </div>
@@ -239,7 +241,8 @@
             <input
               #paymentInput
               type="text"
-              [ngModel]="paymentAmount()"
+              [ngModel]="paymentCashInput()"
+              maxlength="5"
               (input)="updatePayment(paymentInput.value)"
               (keydown.enter)="finalizeSale()"
               class="w-full bg-slate-950 border-2 border-slate-700 focus:border-emerald-500 rounded-xl py-4 pl-10 pr-4 text-3xl font-mono text-white outline-none transition-all shadow-inner"
@@ -256,17 +259,31 @@
           [class.bg-emerald-900/20]="changeAmount() >= 0"
           [class.border-emerald-800]="changeAmount() >= 0"
         >
+          @if (paymentCashInput()>0 &&  changeAmount() > 0){
           <span class="text-slate-400 font-bold uppercase text-sm">Vuelto / Cambio</span>
+          } @else {
+            <span class="text-slate-400 font-bold uppercase text-sm">Pago con tarjeta</span>
+          }
           <span
             class="text-2xl font-mono font-bold"
-            [class.text-red-400]="changeAmount() < 0"
+            [class.text-yellow-400]="changeAmount() < 0"
             [class.text-emerald-400]="changeAmount() >= 0"
           >
-            $ {{ changeAmount() | number }}
+            $ {{ tarjetaVuelto(changeAmount()) | number }}
           </span>
         </div>
 
         <!-- Botones -->
+         <button
+            (click)="finalizeSale()"
+            [disabled]="changeAmount() >= 0"
+            [hidden]="changeAmount() >= 0"
+            class="w-full mb-4 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed text-white py-4 rounded-xl shadow-lg shadow-emerald-900/30 active:translate-y-0.5 transition-all group"
+          >
+            <div class="font-black text-lg group-hover:scale-105 transition-transform">( * )</div>
+            <div class="text-[10px] opacity-80 uppercase font-bold">Imprimir Ticket (Doble Pago)</div>
+          </button>
+
         <div class="grid grid-cols-2 gap-4">
           <button
             (click)="finalizeSale()"
@@ -281,7 +298,7 @@
             (click)="closeCheckout()"
             class="bg-transparent hover:bg-slate-800 text-slate-400 hover:text-white py-4 rounded-xl border-2 border-slate-700 active:translate-y-0.5 transition-all"
           >
-            <div class="font-black text-lg">+ / ESC</div>
+            <div class="font-black text-lg">( + )</div>
             <div class="text-[10px] opacity-60 uppercase font-bold">Cancelar</div>
           </button>
         </div>
@@ -332,11 +349,15 @@
     <table style="width: 100%; font-size: 14px; font-weight: bold">
       <tr>
         <td>TOTAL:</td>
-        <td style="text-align: right">${{ lastVoucher()!.total | number }}</td>
+        <td style="text-align: right">${{ lastVoucher()!.totalToPay| number }}</td>
       </tr>
       <tr style="font-size: 12px; font-weight: normal">
         <td>Efectivo:</td>
-        <td style="text-align: right">${{ lastVoucher()!.payment | number }}</td>
+        <td style="text-align: right">${{ lastVoucher()!.paymentCash | number }}</td>
+      </tr>
+      <tr style="font-size: 12px; font-weight: normal">
+        <td>Tarjeta:</td>
+        <td style="text-align: right">${{ lastVoucher()!.paymentCard | number }}</td>
       </tr>
       <tr style="font-size: 12px; font-weight: normal">
         <td>Vuelto:</td>
