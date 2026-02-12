@@ -20,7 +20,7 @@ export class ProductService {
   // BASE DE DATOS DE PRODUCTOS
   private _products: Product[] = [
     // --- 100: POLLO ---
-    { code: '100', name: 'Tuto de Pollo', pricePerKg: 2990, category: 'POLLO' },
+    { code: '100', name: 'Trutro de Pollo', pricePerKg: 2990, category: 'POLLO' },
     { code: '101', name: 'Alitas de Pollo', pricePerKg: 3590, category: 'POLLO' },
     { code: '102', name: 'Patitas de Pollo', pricePerKg: 1500, category: 'POLLO' },
     { code: '103', name: 'Trutro Cuarto', pricePerKg: 2490, category: 'POLLO' },
@@ -65,8 +65,10 @@ export class ProductService {
   // 2. BÚSQUEDA OPTIMIZADA (Requisito 3.3)
   // Busca por coincidencia exacta de código. Retorna undefined si no existe.
   getProductByCode(code: string): Product | undefined {
-    return this.productsSignal().find(p => p.code === code);
+    const searchCode = code.toString().trim(); 
+    return this.productsSignal().find(p => p.code.toString() === searchCode);
   }
+
 
   // 3. ACTUALIZACIÓN DE PRECIOS (Requisito 4)
   // Solo el admin puede llamar a esto. Genera un log de auditoría.
@@ -130,25 +132,7 @@ export class ProductService {
     // Simulamos delay de red
     setTimeout(() => {
       // DATA MOCK SEGÚN CATEGORÍAS DEL CONTRATO (3.2)
-      const mockData: Product[] = [
-        // 1xx -> Pollo
-        { code: '101', name: 'Pechuga Entera', pricePerKg: 4990, category: 'POLLO' },
-        { code: '102', name: 'Trutro Largo', pricePerKg: 2990, category: 'POLLO' },
-        { code: '103', name: 'Alas de Pollo', pricePerKg: 3500, category: 'POLLO' },
-        
-        // 2xx -> Vacuno
-        { code: '201', name: 'Posta Negra', pricePerKg: 8990, category: 'VACUNO' },
-        { code: '202', name: 'Lomo Vetado', pricePerKg: 12990, category: 'VACUNO' },
-        { code: '203', name: 'Molida Especial', pricePerKg: 7500, category: 'VACUNO' },
-
-        // 3xx -> Cerdo
-        { code: '301', name: 'Costillar Cerdo', pricePerKg: 6990, category: 'CERDO' },
-        { code: '302', name: 'Pulpa Pierna', pricePerKg: 5490, category: 'CERDO' },
-
-        // 4xx -> Embutidos
-        { code: '401', name: 'Longaniza Chillán', pricePerKg: 8500, category: 'EMBUTIDOS' },
-        { code: '402', name: 'Prieta Artesanal', pricePerKg: 4200, category: 'EMBUTIDOS' },
-      ];
+      const mockData: Product[] = this._products
 
       // Actualizamos la señal con los datos "nuevos" del servidor
       this.productsSignal.set(mockData);

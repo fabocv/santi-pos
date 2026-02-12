@@ -1,186 +1,231 @@
-// src/app/features/pos/pos.component.ts
-import {
-  Component,
-  computed,
-  ElementRef,
-  HostListener,
-  inject,
-  signal,
-  ViewChild,
-} from '@angular/core';
+import { Component, ElementRef, HostListener, ViewChild, ViewChildren, QueryList, inject, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { CartService } from '../../core/services/cart.service';
 import { FormsModule } from '@angular/forms';
 import { ProductService } from '../../core/services/product.service';
+import { Product } from '../../core/models/pos.model';
+
+interface CartItem {
+  product: Product;
+  weight: number;
+  total: number;
+}
+
+interface SaleSession {
+  id: number;
+  items: CartItem[];
+  total: number;
+}
 
 @Component({
   selector: 'app-pos',
   standalone: true,
   imports: [CommonModule, FormsModule],
-  template: `
-    <div class="h-screen flex flex-col bg-gray-100">
-      <!-- Header / Info -->
-      <header class="bg-slate-800 text-white p-4 flex justify-between">
-        <h1 class="text-xl font-bold">
-          Santi-Pos <span class="text-xs font-normal opacity-70">MVP v1.0</span>
-        </h1>
-        <div class="text-2xl font-mono text-green-400">
-          TOTAL: {{ cartService.total() | currency }}
-        </div>
-      </header>
+  templateUrl: './pos.html',
+  styles: [`
+    /* Scrollbar oscuro personalizado */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #0f172a; } 
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
 
-      <div class="flex flex-1 overflow-hidden">
-        <!-- COLUMNA IZQUIERDA: CARRITO -->
-        <div class="w-2/3 bg-white border-r border-gray-300 flex flex-col">
-          <div class="flex-1 overflow-y-auto p-4">
-            <table class="w-full text-left">
-              <thead>
-                <tr class="text-gray-500 border-b">
-                  <th class="p-2">Producto</th>
-                  <th class="p-2 text-right">Peso (g)</th>
-                  <th class="p-2 text-right">$/kg</th>
-                  <th class="p-2 text-right">Subtotal</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (item of cartService.cartItems(); track $index) {
-                  <tr
-                    [class.bg-blue-100]="selectedIndex() === $index"
-                    class="border-b hover:bg-gray-50"
-                  >
-                    <td class="p-3 font-medium">{{ item.product.name }}</td>
-                    <td class="p-3 text-right">{{ item.grams }}g</td>
-                    <td class="p-3 text-right">{{ item.product.pricePerKg | currency }}</td>
-                    <td class="p-3 text-right font-bold">{{ item.subtotal | currency }}</td>
-                  </tr>
-                } @empty {
-                  <tr>
-                    <td colspan="4" class="text-center p-10 text-gray-400">Carrito vacío</td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-          <!-- Instrucciones Footer -->
-          <div class="bg-gray-50 p-2 text-xs text-gray-500 flex justify-around border-t">
-            <span>[↑/↓] Navegar</span>
-            <span>[-] Eliminar Item</span>
-            <span>[ESPACIO] Pagar</span>
-          </div>
-        </div>
-
-        <!-- COLUMNA DERECHA: ENTRADA DE DATOS -->
-        <div class="w-1/3 bg-gray-200 p-6 flex flex-col gap-4">
-          <!-- Input Código -->
-          <div class="bg-white p-4 rounded shadow">
-            <label class="block text-sm font-bold text-gray-700">CÓDIGO PRODUCTO</label>
-            <input
-              #codeInput
-              [(ngModel)]="currentCode"
-              (keyup.enter)="focusWeight()"
-              class="w-full text-3xl p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
-              placeholder="1xx..."
-              autofocus
-            />
-          </div>
-
-          <!-- Input Peso -->
-          <div class="bg-white p-4 rounded shadow">
-            <label class="block text-sm font-bold text-gray-700">PESO (Gramos)</label>
-            <input
-              #weightInput
-              type="number"
-              [(ngModel)]="currentWeight"
-              (keyup.enter)="addToCart()"
-              class="w-full text-3xl p-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 outline-none"
-              placeholder="0"
-            />
-          </div>
-
-          <!-- Visor Producto Encontrado (Preview) -->
-          @if (foundProduct()) {
-            <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded text-center">
-              <div class="text-lg font-bold text-blue-800">{{ foundProduct()?.name }}</div>
-              <div class="text-gray-600">{{ foundProduct()?.pricePerKg | currency }}/kg</div>
-            </div>
-          }
-        </div>
-      </div>
-
-      <!-- Modal de Pago (Componente separado en la realidad) -->
-      @if (showPaymentModal) {
-        <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-          <!-- ... Lógica de pago aquí ... -->
-        </div>
-      }
-    </div>
-  `,
+    /* EFECTO DE FOCO EN LA LISTA (Modo Dark) */
+    tr:focus {
+      outline: 2px solid #ef4444; /* Borde rojo neón */
+      background-color: rgba(239, 68, 68, 0.15); /* Fondo rojo muy suave */
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.2); /* Resplandor */
+      position: relative;
+      z-index: 10;
+      color: #fff;
+    }
+  `]
 })
 export class PosComponent {
-  cartService = inject(CartService);
-  productService = inject(ProductService);
+  private productService = inject(ProductService);
+  @ViewChild('confirmBtn') confirmBtn!: ElementRef;
 
-  @ViewChild('codeInput') codeInputRef!: ElementRef<HTMLInputElement>;
-  @ViewChild('weightInput') weightInputRef!: ElementRef<HTMLInputElement>;
+  constructor(){
+    effect(() => {
+      const index = this.itemIndexToDelete();
+      if (index !== null) {
+        // Esperamos un milisegundo a que el HTML se dibuje
+        setTimeout(() => {
+          if (this.confirmBtn) this.confirmBtn.nativeElement.focus();
+        }, 50);
+      }
+    });
+  }
 
-  currentCode = '';
-  currentWeight: number | null = null;
-  selectedIndex = signal(0);
-  showPaymentModal = false;
+  // --- ESTADO ---
+  activeSaleIndex = signal<0 | 1>(0);
+  sales = signal<[SaleSession, SaleSession]>([
+    { id: 1, items: [], total: 0 },
+    { id: 2, items: [], total: 0 }
+  ]);
 
-  // Computed para buscar producto mientras escriben
-  foundProduct = computed(() => this.productService.getProductByCode(this.currentCode));
+  currentCode = signal('');
+  currentWeight = signal<number | null>(null);
+  foundProduct = signal<Product | null>(null);
+  
+  // Modal de eliminación
+  itemIndexToDelete = signal<number | null>(null); 
 
-  // Manejo de teclado (Navegación Carrito)
+  // --- DOM REFERENCES ---
+  @ViewChild('codeInput') codeInput!: ElementRef;
+  @ViewChild('weightInput') weightInput!: ElementRef;
+  @ViewChildren('saleRow') saleRows!: QueryList<ElementRef>;
+
+  // --- 1. GESTOR GLOBAL DE TECLAS (+ y -) ---
   @HostListener('window:keydown', ['$event'])
-  handleKeyboardEvent(event: KeyboardEvent) {
-    if (this.showPaymentModal) return; // Si estamos pagando, el teclado lo maneja el modal
+  handleGlobalKeys(event: KeyboardEvent) {
+    const key = event.key;
 
-    switch (event.key) {
-      case 'ArrowUp':
-        this.selectedIndex.update((i) => Math.max(0, i - 1));
-        break;
-      case 'ArrowDown':
-        this.selectedIndex.update((i) => Math.min(this.cartService.itemCount() - 1, i + 1));
-        break;
-      case '-': // Tecla menos para borrar
-      case 'Delete':
-        this.deleteSelectedItem();
-        break;
-      case ' ': // Espacio para ir a pagar
-        if (this.cartService.total() > 0) this.openPayment();
-        break;
+    // --- LOGICA DE SUMA (+) ---
+    // Regla: Cierra cualquier popup o devuelve el foco al inicio
+    if (key === '+') {
+      event.preventDefault(); // Evita escribir "+"
+      
+      // Caso 1: Hay un modal abierto -> Cerrarlo
+      if (this.itemIndexToDelete() !== null) {
+        this.cancelDelete();
+        return;
+      }
+      
+      // Caso 2: Estamos navegando en la lista -> Volver al input
+      // O simplemente resetea el foco al input principal siempre
+      this.focusCodeInput();
+      
+      // (Opcional: Si quisieras mantener el doble click para cambiar pestaña, iría aquí)
+      return;
+    }
+
+    // --- LOGICA DE RESTA (-) ---
+    // Regla: Navegación cíclica global hacia arriba
+    if (key === '-') {
+      // Si el modal está abierto, no hacemos navegación, dejamos que el usuario decida (o usa + para salir)
+      if (this.itemIndexToDelete() !== null) return;
+
+      event.preventDefault(); // Evita escribir "-"
+      this.cycleFocusUp();
+      return;
+    }
+  }
+  
+
+  // --- 2. NAVEGACIÓN CÍCLICA ---
+  cycleFocusUp() {
+    const rows = this.saleRows.toArray();
+    const count = rows.length;
+
+    // Si no hay items, no hacemos nada
+    if (count === 0) return;
+
+    // Averiguar dónde está el foco actualmente
+    const activeElement = document.activeElement;
+    const activeIndex = rows.findIndex(r => r.nativeElement === activeElement);
+
+    let nextIndex;
+
+    if (activeIndex === -1) {
+      // Si el foco NO está en la lista (está en inputs), ir al ÚLTIMO (Abajo)
+      nextIndex = count - 1;
+    } else {
+      // Si el foco ESTÁ en la lista, subir uno
+      nextIndex = activeIndex - 1;
+
+      // SI llega arriba del todo (índice -1), LOOP al último (Abajo)
+      if (nextIndex < 0) {
+        nextIndex = count - 1;
+      }
+    }
+
+    // Aplicar foco
+    rows[nextIndex].nativeElement.focus();
+  }
+
+  // --- 3. INPUTS SANITIZADOS ---
+  sanitizeInput(field: 'code' | 'weight', value: any) {
+    if (!value) return;
+    const cleanValue = value.toString().replace(/[^0-9]/g, '');
+    if (field === 'code') this.currentCode.set(cleanValue);
+    else this.currentWeight.set(cleanValue ? parseInt(cleanValue, 10) : null);
+  }
+
+  // --- 4. ACCIONES DE LA LISTA ---
+  onRowKeydown(event: KeyboardEvent, index: number) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      // Abrir modal de confirmación
+      this.itemIndexToDelete.set(index);
+    }
+    // Nota: El (-) y (+) ya son manejados por el HostListener global
+  }
+
+  // --- 5. LOGICA DE VENTA ---
+  onCodeEnter() {
+    const code = this.currentCode();
+    if (!code) return;
+    const product = this.productService.getProductByCode(code);
+    if (product) {
+      this.foundProduct.set(product);
+      setTimeout(() => this.weightInput.nativeElement.focus(), 0);
+    } else {
+      this.currentCode.set('');
     }
   }
 
-  addToCart() {
+  onWeightEnter() {
     const product = this.foundProduct();
-    if (product && this.currentWeight && this.currentWeight > 0) {
-      this.cartService.addItem(product, this.currentWeight);
-      // Reset inputs
-      this.currentCode = '';
-      this.currentWeight = null;
-      // Refocus código
-      document.querySelector<HTMLInputElement>('input[placeholder="1xx..."]')?.focus();
+    const weight = this.currentWeight();
+    if (product && weight && weight > 0) {
+      this.addItemToCurrentSale(product, weight);
+      this.resetForm();
+      this.focusCodeInput();
     }
   }
 
-  deleteSelectedItem() {
-    if (confirm('¿Eliminar ítem seleccionado? (ENTER para sí, ESC para no)')) {
-      this.cartService.removeItem(this.selectedIndex());
-    }
+  addItemToCurrentSale(product: Product, weight: number) {
+    const total = Math.round((weight / 1000) * product.pricePerKg);
+    const newItem: CartItem = { product, weight, total };
+    this.sales.update(curr => {
+      const active = { ...curr[this.activeSaleIndex()] };
+      active.items = [...active.items, newItem];
+      active.total += total;
+      const newSales = [...curr] as [SaleSession, SaleSession];
+      newSales[this.activeSaleIndex()] = active;
+      return newSales;
+    });
   }
 
-  focusWeight() {
-    // Solo saltar si hay algo escrito, mejora la UX
-    if (this.currentCode && this.currentCode.trim().length > 0) {
-      // nativeElement accede al objeto <input> real del navegador
-      this.weightInputRef.nativeElement.focus();
-      this.weightInputRef.nativeElement.select(); // Selecciona el texto si ya había algo
-    }
+  // --- 6. ELIMINACIÓN ---
+  confirmDelete() {
+    const index = this.itemIndexToDelete();
+    if (index === null) return;
+    this.sales.update(curr => {
+      const active = { ...curr[this.activeSaleIndex()] };
+      active.items.splice(index, 1);
+      active.total = active.items.reduce((acc, item) => acc + item.total, 0);
+      const newSales = [...curr] as [SaleSession, SaleSession];
+      newSales[this.activeSaleIndex()] = active;
+      return newSales;
+    });
+    this.cancelDelete();
   }
 
-  openPayment() {
-    this.showPaymentModal = true;
+  cancelDelete() {
+    this.itemIndexToDelete.set(null);
+    this.focusCodeInput();
+  }
+
+  // --- UTILS ---
+  resetForm() {
+    this.currentCode.set('');
+    this.currentWeight.set(null);
+    this.foundProduct.set(null);
+  }
+
+  focusCodeInput() {
+    setTimeout(() => {
+      if (this.codeInput) this.codeInput.nativeElement.focus();
+    }, 50);
   }
 }

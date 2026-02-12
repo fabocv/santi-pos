@@ -1,0 +1,165 @@
+<!-- FONDO GENERAL: Slate 950 (Casi negro) -->
+<div class="h-screen bg-slate-950 flex flex-col p-4 relative overflow-hidden font-sans text-slate-200">
+  
+  <!-- CABECERA: PESTAÑAS -->
+  <div class="flex gap-2 mb-4 select-none">
+    @for (sale of sales(); track sale.id; let i = $index) {
+      <div 
+        class="flex-1 p-4 rounded-t-xl transition-all border-t-4 cursor-pointer relative overflow-hidden group"
+        [class.border-blue-500]="activeSaleIndex() === i"
+        [class.bg-slate-800]="activeSaleIndex() === i"
+        [class.text-white]="activeSaleIndex() === i"
+        
+        [class.border-transparent]="activeSaleIndex() !== i"
+        [class.bg-slate-900]="activeSaleIndex() !== i"
+        [class.text-slate-500]="activeSaleIndex() !== i"
+        [class.opacity-60]="activeSaleIndex() !== i"
+      >
+        <!-- Brillo sutil en la pestaña activa -->
+        @if(activeSaleIndex() === i) {
+          <div class="absolute inset-0 bg-gradient-to-b from-blue-500/10 to-transparent pointer-events-none"></div>
+        }
+
+        <div class="flex justify-between items-center relative z-10">
+          <h3 class="text-xs font-bold tracking-widest uppercase">TERMINAL {{ i + 1 }}</h3>
+          <div class="text-3xl font-mono font-bold tracking-tight">
+            <span class="text-slate-500 mr-1">$</span>{{ sale.total | number }}
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- AREA PRINCIPAL (TARJETA OSCURA) -->
+  <div class="bg-slate-800 rounded-b-xl shadow-2xl flex-1 flex flex-col p-5 border border-slate-700/50">
+    
+    <!-- BARRA DE ENTRADA (Input Panel) -->
+    <div class="flex gap-4 items-end mb-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700 shadow-inner">
+      
+      <!-- CÓDIGO -->
+      <div class="w-32">
+        <label class="block text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-1">Código</label>
+        <input 
+          #codeInput
+          type="text" 
+          [ngModel]="currentCode()"
+          (input)="sanitizeInput('code', codeInput.value)"
+          (keydown.enter)="onCodeEnter()"
+          class="w-full text-3xl font-mono p-2 border-b-2 border-slate-600 focus:border-blue-500 outline-none bg-transparent text-center text-white placeholder-slate-700 transition-colors"
+          placeholder="#"
+          autofocus
+        />
+      </div>
+      
+      <!-- VISOR PRODUCTO (Centro) -->
+      <div class="flex-1 px-6 h-16 flex flex-col justify-center border-l border-r border-slate-700 mx-2">
+        @if (foundProduct()) {
+          <div class="text-blue-400 font-bold text-2xl leading-none truncate drop-shadow-sm">{{ foundProduct()?.name }}</div>
+          <div class="text-slate-400 text-sm font-mono mt-1">$ {{ foundProduct()?.pricePerKg | number }} / Kg</div>
+        } @else {
+          <div class="text-slate-600 text-lg italic font-light flex items-center gap-2">
+            <span class="animate-pulse">_</span> Esperando entrada...
+          </div>
+        }
+      </div>
+
+      <!-- PESO -->
+      <div class="w-40">
+        <label class="block text-[10px] font-bold text-green-400 uppercase tracking-wider mb-1">Peso (Gr)</label>
+        <input 
+          #weightInput
+          type="text"
+          [ngModel]="currentWeight()"
+          (input)="sanitizeInput('weight', weightInput.value)"
+          (keydown.enter)="onWeightEnter()"
+          [disabled]="!foundProduct()"
+          class="w-full text-3xl font-mono p-2 border-b-2 border-slate-600 focus:border-green-500 outline-none bg-transparent text-right text-white disabled:opacity-20 placeholder-slate-700 transition-colors"
+          placeholder="0"
+        />
+      </div>
+    </div>
+
+    <!-- LISTA DE PRODUCTOS (GRID) -->
+    <div class="flex-1 overflow-auto rounded-lg border border-slate-700 bg-slate-900 relative">
+      <table class="w-full text-left border-collapse">
+        <thead class="bg-slate-950 text-slate-400 font-bold uppercase text-[10px] sticky top-0 z-20 shadow-lg border-b border-slate-800">
+          <tr>
+            <th class="p-3 w-1/2 tracking-wider">Producto</th>
+            <th class="p-3 text-right tracking-wider">Peso</th>
+            <th class="p-3 text-right tracking-wider">Precio</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800/50 text-lg">
+          @for (item of sales()[activeSaleIndex()].items; track $index) {
+            <tr 
+              #saleRow
+              tabindex="0"
+              class="cursor-pointer hover:bg-slate-800 transition-colors focus:outline-none group"
+              (keydown)="onRowKeydown($event, $index)"
+            >
+              <td class="p-3 pl-4 font-medium text-slate-300 group-hover:text-white transition-colors">{{ item.product.name }}</td>
+              <td class="p-3 text-right font-mono text-slate-500 text-base">{{ item.weight }}g</td>
+              <td class="p-3 pr-4 text-right font-bold font-mono text-emerald-400">$ {{ item.total | number }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+      
+      <!-- Estado Vacío -->
+      @if (sales()[activeSaleIndex()].items.length === 0) {
+        <div class="absolute inset-0 flex flex-col items-center justify-center text-slate-700 pointer-events-none select-none">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mb-2 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+          <span class="font-mono text-sm tracking-widest opacity-50">TERMINAL LISTA</span>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- MODAL DE CONFIRMACIÓN (Dark & Red) -->
+  @if (itemIndexToDelete() !== null) {
+    <div class="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-200">
+      
+      <!-- Tarjeta Modal -->
+      <div class="bg-slate-900 p-6 rounded-xl shadow-2xl w-full max-w-sm text-center border border-slate-700 relative overflow-hidden">
+        
+        <!-- Borde superior rojo brillante -->
+        <div class="absolute top-0 left-0 right-0 h-1 bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.8)]"></div>
+
+        <h2 class="text-2xl font-black text-white mb-1 tracking-tight mt-2">¿BORRAR ITEM?</h2>
+        <p class="text-slate-500 text-xs uppercase mb-6 font-mono">Acción Irreversible</p>
+        
+        <!-- Preview del item -->
+        <div class="bg-red-900/20 p-4 rounded-lg mb-6 border border-red-900/50">
+           @let item = sales()[activeSaleIndex()].items[itemIndexToDelete()!];
+           <div class="font-bold text-red-400 text-lg">{{ item.product.name }}</div>
+           <div class="flex justify-between mt-2 px-2 text-red-300/70 font-mono text-sm">
+             <span>{{ item.weight }}g</span>
+             <span class="font-bold text-red-400">${{ item.total | number }}</span>
+           </div>
+        </div>
+
+        <!-- Botonera -->
+        <div class="grid grid-cols-2 gap-3" #borrarItem>
+          <button 
+            (click)="confirmDelete()"
+            class="bg-red-600 hover:bg-red-500 text-white py-3 rounded-lg shadow-lg shadow-red-900/50 active:translate-y-0.5 transition-all group">
+            <div class="font-black text-sm group-hover:scale-110 transition-transform">ENTER</div>
+            <div class="text-[10px] opacity-80 uppercase font-bold">Confirmar</div>
+          </button>
+          
+          <button 
+            (click)="cancelDelete()"
+            class="bg-slate-800 hover:bg-slate-700 text-slate-300 py-3 rounded-lg border border-slate-700 active:translate-y-0.5 transition-all">
+            <div class="font-black text-sm">+ / ESC</div>
+            <div class="text-[10px] opacity-60 uppercase font-bold">Cancelar</div>
+          </button>
+        </div>
+
+        <!-- Trampa de foco -->
+        <input class="opacity-0 absolute w-0 h-0" autoFocus (keydown.enter)="confirmDelete()" (keydown.escape)="cancelDelete()">
+      </div>
+    </div>
+  }
+</div>
