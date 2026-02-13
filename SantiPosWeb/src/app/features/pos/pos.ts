@@ -78,6 +78,13 @@ interface VoucherData {
           margin: 0;
           size: 58mm auto;
         }
+        * {
+          color: #000000 !important;
+          text-shadow: none !important;
+          font-weight: 900 !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
         body * {
           visibility: hidden;
           height: 0;
@@ -87,6 +94,10 @@ interface VoucherData {
         #printableArea * {
           visibility: visible;
           height: auto;
+          filter: contrast(150%); /* Aumenta contraste artificialmente */
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color-adjust: exact !important;
         }
         #printableArea {
           position: absolute;
@@ -165,10 +176,10 @@ export class PosComponent {
   changeAmount = computed(() => {
     const rawTotal = this.sales()[this.activeSaleIndex()].total;
     const prePay = this.paymentCashInput() - this.roundedTotal();
-    return this.paymentCashInput() > 0 ? 
-      prePay >= 0?
-        prePay:
-        this.paymentCashInput() - rawTotal
+    return this.paymentCashInput() > 0
+      ? prePay >= 0
+        ? prePay
+        : this.paymentCashInput() - rawTotal
       : rawTotal;
   });
 
@@ -304,7 +315,7 @@ export class PosComponent {
     this.lastVoucher.set(voucher);
 
     // 2. Limpiar la venta actual
-    this.cleanCurrentSaleAndClose()
+    this.cleanCurrentSaleAndClose();
 
     setTimeout(() => {
       try {
@@ -327,6 +338,9 @@ export class PosComponent {
     setTimeout(() => {
       window.print();
     }, 100);
+    setTimeout(() => {
+      this.lastVoucher.set(null);
+    }, 100);
   }
 
   cleanCurrentSaleAndClose() {
@@ -345,38 +359,37 @@ export class PosComponent {
   }
 
   sanitizeInput(field: 'code' | 'weight', value: any, digits: number) {
-  if (!value) {
-    if (field === 'code') this.currentCode.set(0);
-    else this.currentWeight.set(0);
-    return;
-  }
-  
-  let cleanValue = value.toString().replace(/\D/g, '');
-  
-  // Eliminar ceros iniciales
-  cleanValue = cleanValue.replace(/^0+/, '');
-  
-  // Limitar la longitud máxima
-  if (cleanValue.length > digits) {
-    cleanValue = cleanValue.slice(0, digits);
-  }
-  
-  // Convertir a número (0 si está vacío)
-  const clean = cleanValue ? parseInt(cleanValue, 10) : 0;
-  
-  if (field === 'code') {
-    this.currentCode.set(clean);
-    if (this.codeInput && this.codeInput.nativeElement.value !== cleanValue) {
-      this.codeInput.nativeElement.value = cleanValue; // Usar cleanValue (string) para el input
+    if (!value) {
+      if (field === 'code') this.currentCode.set(0);
+      else this.currentWeight.set(0);
+      return;
     }
-  } else {
-    this.currentWeight.set(clean);
-    if (this.weightInput && this.weightInput.nativeElement.value !== cleanValue) {
-      this.weightInput.nativeElement.value = cleanValue; // CORRECCIÓN: era cleanValue en lugar de clean
-    }
-  }
-}
 
+    let cleanValue = value.toString().replace(/\D/g, '');
+
+    // Eliminar ceros iniciales
+    cleanValue = cleanValue.replace(/^0+/, '');
+
+    // Limitar la longitud máxima
+    if (cleanValue.length > digits) {
+      cleanValue = cleanValue.slice(0, digits);
+    }
+
+    // Convertir a número (0 si está vacío)
+    const clean = cleanValue ? parseInt(cleanValue, 10) : 0;
+
+    if (field === 'code') {
+      this.currentCode.set(clean);
+      if (this.codeInput && this.codeInput.nativeElement.value !== cleanValue) {
+        this.codeInput.nativeElement.value = cleanValue; // Usar cleanValue (string) para el input
+      }
+    } else {
+      this.currentWeight.set(clean);
+      if (this.weightInput && this.weightInput.nativeElement.value !== cleanValue) {
+        this.weightInput.nativeElement.value = cleanValue; // CORRECCIÓN: era cleanValue en lugar de clean
+      }
+    }
+  }
 
   onCodeEnter() {
     const code = this.currentCode();
