@@ -249,6 +249,7 @@ export class PosComponent {
 
   updatePayment(value: string) {
     let clean = value.replace(/[^0-9]/g, '');
+    if (clean[0] === '0') clean = clean.slice(1);
     if (clean.length > 5) {
       clean = clean.slice(0, 5);
     }
@@ -347,13 +348,21 @@ export class PosComponent {
       return;
     }
     let cleanValue = value.toString().replace(/[^0-9]/g, '0');
+    if (cleanValue[0] === '0') cleanValue = cleanValue.slice(1);
     if (cleanValue.length > digits) {
       cleanValue = cleanValue.slice(0, digits);
     }
+    const clean = cleanValue ? parseInt(cleanValue, 10) : 0
     if (field === 'code') {
       this.currentCode.set(cleanValue);
+      if (this.codeInput && this.codeInput.nativeElement.value !== cleanValue) {
+        this.codeInput.nativeElement.value = cleanValue;
+      }
     } else {
-      this.currentWeight.set(cleanValue ? parseInt(cleanValue, 10) : 0);
+      this.currentWeight.set(clean);
+      if (this.weightInput && this.weightInput.nativeElement.value !== cleanValue) {
+        this.weightInput.nativeElement.value = clean;
+      }
     }
   }
 
