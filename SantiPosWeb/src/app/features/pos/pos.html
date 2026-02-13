@@ -76,7 +76,7 @@
           </div>
         } @else {
           <div class="text-slate-600 text-sm md:text-lg italic font-light flex items-center gap-2 truncate">
-            <span class="animate-pulse">_</span> Ingrese item...
+            <span class="animate-pulse">_</span> Ingrese item ( + )
           </div>
         }
       </div>
@@ -151,14 +151,11 @@
     <!-- FOOTER: TOTAL Y COBRAR -->
     <!-- Posicionamiento absoluto ajustado para no molestar -->
     <div
-      class="absolute bottom-2 left-2 right-2 md:bottom-4 md:left-4 md:right-4 h-14 md:h-16 bg-slate-900/95 backdrop-blur border border-slate-700 rounded-lg flex items-center justify-between px-4 md:px-6 shadow-2xl z-30"
+      class="absolute bottom-2 left-2 right-2 md:bottom-4 md:left-4 md:right-4 h-20 bg-slate-900/95 backdrop-blur border border-slate-700 rounded-lg flex items-center justify-between px-4 md:px-6 shadow-2xl z-30"
     >
-      <div class="text-slate-400 font-mono text-xs md:text-sm">
-        ITEMs:
-        <span class="text-white font-bold">{{ sales()[activeSaleIndex()].items.length }}</span>
-      </div>
-      <div class="flex items-center gap-4 md:gap-6">
-        <div class="text-right">
+      <div class="flex-col min-w-[35%] mr-4 text-right">
+        
+      <div class="text-right w-full">
           <span class="text-[9px] text-slate-500 uppercase font-bold block leading-none mb-0.5"
             >Total</span
           >
@@ -166,6 +163,13 @@
             >$ {{ sales()[activeSaleIndex()].total | number }}</span
           >
         </div>
+        <div class="text-slate-400 font-mono text-xs md:text-sm">
+        ITEMs:
+        <span class="text-white font-bold">{{ sales()[activeSaleIndex()].items.length }}</span>
+      </div>
+      </div>
+      <div class="flex items-center gap-4 md:gap-6">
+        
         <button
           (click)="cleanCurrentSaleAndClose()"
           [disabled]="sales()[activeSaleIndex()].items.length === 0"

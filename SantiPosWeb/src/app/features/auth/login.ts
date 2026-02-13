@@ -24,6 +24,8 @@ export class LoginComponent {
   authService = inject(AuthService);
   router = inject(Router);
 
+  MAX_PIN_LENGTH = 4;
+
   // ESTADO
   currentStep = signal<LoginStep>('SELECT_USER');
   selectedUser = signal<User | null>(null);
@@ -57,7 +59,7 @@ export class LoginComponent {
   // --- LÓGICA DE PIN ---
 
   appendPin(num: number) {
-    if (this.pin().length < 6) {
+    if (this.pin().length < this.MAX_PIN_LENGTH) {
       this.pin.update(p => p + num.toString());
       this.errorMessage.set(''); // Limpiar error al escribir
     }
