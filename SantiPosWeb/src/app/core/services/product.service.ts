@@ -64,7 +64,7 @@ export class ProductService {
 
   // 2. BÚSQUEDA OPTIMIZADA (Requisito 3.3)
   // Busca por coincidencia exacta de código. Retorna undefined si no existe.
-  getProductByCode(code: string): Product | undefined {
+  getProductByCode(code: number): Product | undefined {
     const searchCode = code.toString().trim(); 
     return this.productsSignal().find(p => p.code.toString() === searchCode);
   }

@@ -139,7 +139,7 @@ export class PosComponent {
     { id: 2, items: [], total: 0 },
   ]);
 
-  currentCode = signal('');
+  currentCode = signal(0);
   currentWeight = signal<number>(0);
   foundProduct = signal<Product | null>(null);
 
@@ -211,8 +211,8 @@ export class PosComponent {
       return;
     }
 
-    // --- TECLA (-): NAVEGACIÓN ---
-    if (key === '-') {
+    // --- TECLA (.): NAVEGACIÓN ---
+    if (key === '.') {
       if (this.itemIndexToDelete() !== null || this.showCheckout()) return;
       event.preventDefault();
       this.cycleFocusUp();
@@ -304,19 +304,7 @@ export class PosComponent {
     this.lastVoucher.set(voucher);
 
     // 2. Limpiar la venta actual
-    this.sales.update((curr) => {
-      const newSales = [...curr] as [SaleSession, SaleSession];
-      newSales[this.activeSaleIndex()] = {
-        id: newSales[this.activeSaleIndex()].id,
-        items: [],
-        total: 0,
-      };
-      return newSales;
-    });
-
-    // 3. Cerrar modal y enfocar input principal
-    this.showCheckout.set(false);
-    this.focusCodeInput();
+    this.cleanCurrentSaleAndClose()
 
     setTimeout(() => {
       try {
@@ -341,30 +329,54 @@ export class PosComponent {
     }, 100);
   }
 
+  cleanCurrentSaleAndClose() {
+    this.sales.update((curr) => {
+      const newSales = [...curr] as [SaleSession, SaleSession];
+      newSales[this.activeSaleIndex()] = {
+        id: newSales[this.activeSaleIndex()].id,
+        items: [],
+        total: 0,
+      };
+      return newSales;
+    });
+
+    this.showCheckout.set(false);
+    this.focusCodeInput();
+  }
+
   sanitizeInput(field: 'code' | 'weight', value: any, digits: number) {
-    if (!value) {
-      if (field === 'code') this.currentCode.set('');
-      else this.currentWeight.set(0);
-      return;
+  if (!value) {
+    if (field === 'code') this.currentCode.set(0);
+    else this.currentWeight.set(0);
+    return;
+  }
+  
+  let cleanValue = value.toString().replace(/\D/g, '');
+  
+  // Eliminar ceros iniciales
+  cleanValue = cleanValue.replace(/^0+/, '');
+  
+  // Limitar la longitud máxima
+  if (cleanValue.length > digits) {
+    cleanValue = cleanValue.slice(0, digits);
+  }
+  
+  // Convertir a número (0 si está vacío)
+  const clean = cleanValue ? parseInt(cleanValue, 10) : 0;
+  
+  if (field === 'code') {
+    this.currentCode.set(clean);
+    if (this.codeInput && this.codeInput.nativeElement.value !== cleanValue) {
+      this.codeInput.nativeElement.value = cleanValue; // Usar cleanValue (string) para el input
     }
-    let cleanValue = value.toString().replace(/[^0-9]/g, '0');
-    if (cleanValue[0] === '0') cleanValue = cleanValue.slice(1);
-    if (cleanValue.length > digits) {
-      cleanValue = cleanValue.slice(0, digits);
-    }
-    const clean = cleanValue ? parseInt(cleanValue, 10) : 0
-    if (field === 'code') {
-      this.currentCode.set(cleanValue);
-      if (this.codeInput && this.codeInput.nativeElement.value !== cleanValue) {
-        this.codeInput.nativeElement.value = cleanValue;
-      }
-    } else {
-      this.currentWeight.set(clean);
-      if (this.weightInput && this.weightInput.nativeElement.value !== cleanValue) {
-        this.weightInput.nativeElement.value = clean;
-      }
+  } else {
+    this.currentWeight.set(clean);
+    if (this.weightInput && this.weightInput.nativeElement.value !== cleanValue) {
+      this.weightInput.nativeElement.value = cleanValue; // CORRECCIÓN: era cleanValue en lugar de clean
     }
   }
+}
+
 
   onCodeEnter() {
     const code = this.currentCode();
@@ -374,7 +386,7 @@ export class PosComponent {
       this.foundProduct.set(product);
       setTimeout(() => this.weightInput.nativeElement.focus(), 0);
     } else {
-      this.currentCode.set('');
+      this.currentCode.set(0);
     }
   }
 
@@ -440,7 +452,7 @@ export class PosComponent {
   }
 
   resetForm() {
-    this.currentCode.set('');
+    this.currentCode.set(0);
     this.currentWeight.set(0);
     this.foundProduct.set(null);
   }

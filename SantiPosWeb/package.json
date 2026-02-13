@@ -4,7 +4,8 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build",
+    "publish" : "npx angular-cli-ghpages --dir=dist/SantiPosWeb/browser",
+    "build": "ng build --base-href /santi-pos/ && cp dist/SantiPosWeb/browser/index.csr.html dist/SantiPosWeb/browser/index.html && cp dist/SantiPosWeb/browser/index.html dist/SantiPosWeb/browser/404.html",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "serve:ssr:SantiPosWeb": "node dist/SantiPosWeb/server/server.mjs"
