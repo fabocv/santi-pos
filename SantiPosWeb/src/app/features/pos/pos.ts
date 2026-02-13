@@ -250,8 +250,8 @@ export class PosComponent {
   updatePayment(value: string) {
     let clean = value.replace(/[^0-9]/g, '');
     if (clean[0] === '0') clean = clean.slice(1);
-    if (clean.length > 5) {
-      clean = clean.slice(0, 5);
+    if (clean.length > 6) {
+      clean = clean.slice(0, 6);
     }
     const num = clean ? parseInt(clean, 10) : 0;
     this.paymentCashInput.set(num);
