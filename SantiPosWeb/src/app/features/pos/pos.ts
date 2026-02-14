@@ -13,7 +13,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProductService } from '../../core/services/product.service';
-import { Product } from '../../core/models/pos.model';
+import { Product, productoGenerico } from '../../core/models/pos.model';
 import JsBarcode from 'jsbarcode';
 
 interface CartItem {
@@ -153,6 +153,7 @@ export class PosComponent {
   currentCode = signal(0);
   currentWeight = signal<number>(0);
   foundProduct = signal<Product | null>(null);
+  insertingPrice = signal(false);
 
   // Estados de Modales
   itemIndexToDelete = signal<number | null>(null);
@@ -393,8 +394,14 @@ export class PosComponent {
 
   onCodeEnter() {
     const code = this.currentCode();
-    if (!code) return;
+    if (!code) {
+      this.currentCode.set(0);
+      setTimeout(() => this.weightInput.nativeElement.focus(), 0);
+      this.insertingPrice.set(true);
+      return;
+    }
     const product = this.productService.getProductByCode(code);
+    this.insertingPrice.set(false);
     if (product) {
       this.foundProduct.set(product);
       setTimeout(() => this.weightInput.nativeElement.focus(), 0);
@@ -413,12 +420,23 @@ export class PosComponent {
     }
   }
 
+  onPriceEnter(){
+    const price = this.currentWeight();
+    this.resetForm();
+    this.focusCodeInput();
+    this.insertingPrice.set(false);
+    if (!price || price === 0) return;
+    const generico: Product = productoGenerico;
+    this.addItemToCurrentSale(generico, price);
+  }
+
   tarjetaVuelto(value: number) {
     return Math.abs(value);
   }
 
   addItemToCurrentSale(product: Product, weight: number) {
-    const total = Math.round((weight / 1000) * product.pricePerKg);
+    const kilos = product.category === 'OTRO' ? 1 : 1000
+    const total = Math.round((weight / kilos) * product.pricePerKg);
     const newItem: CartItem = { product, weight, total };
     this.sales.update((curr) => {
       const active = { ...curr[this.activeSaleIndex()] };

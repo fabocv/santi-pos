@@ -4,7 +4,14 @@ export interface Product {
   code: string; // 1xx, 2xx, etc.
   name: string;
   pricePerKg: number;
-  category: 'POLLO' | 'VACUNO' | 'CERDO' | 'EMBUTIDOS';
+  category: 'POLLO' | 'VACUNO' | 'CERDO' | 'EMBUTIDOS' | 'PAVO' |'MAR'| 'OTRO';
+}
+
+export const productoGenerico: Product = {
+  code: '-1',
+  name: 'Sin registrar',
+  pricePerKg: 1,
+  category: 'OTRO'
 }
 
 export interface CartItem {

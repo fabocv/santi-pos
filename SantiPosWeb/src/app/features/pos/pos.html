@@ -1,11 +1,13 @@
 <!-- CONTENEDOR PRINCIPAL -->
-<div class="h-[100dvh] w-full bg-slate-950 flex flex-col landscape:flex-row relative overflow-hidden font-sans text-slate-200 no-print">
-
+<div
+  class="h-[100dvh] w-full bg-slate-950 flex flex-col landscape:flex-row relative overflow-hidden font-sans text-slate-200 no-print"
+>
   <!-- ============================================================== -->
   <!-- COLUMNA IZQUIERDA (CONTROLES) - ESTRUCTURA FLEX OPTIMIZADA -->
   <!-- ============================================================== -->
-  <div class="flex flex-col shrink-0 landscape:w-[40%] h-full landscape:border-r landscape:border-slate-800 landscape:bg-slate-900 z-30 shadow-2xl">
-    
+  <div
+    class="flex flex-col shrink-0 landscape:w-[40%] h-full landscape:border-r landscape:border-slate-800 landscape:bg-slate-900 z-30 shadow-2xl"
+  >
     <!-- 1. PESTAÑAS (Fijo, no se encoge) -->
     <div class="flex gap-1 p-1 shrink-0 bg-slate-950 border-b border-slate-800">
       @for (sale of sales(); track sale.id; let i = $index) {
@@ -19,120 +21,163 @@
           [class.text-slate-500]="activeSaleIndex() !== i"
           (click)="activateSaleIndex(i)"
         >
-          <div class="text-[10px] font-bold uppercase tracking-widest opacity-70">Venta {{ i + 1 }}</div>
-          <div class="text-sm font-mono font-bold">
-             ${{ sale.total | number }}
+          <div class="text-[10px] font-bold uppercase tracking-widest opacity-70">
+            Venta {{ i + 1 }}
           </div>
+          <div class="text-sm font-mono font-bold">${{ sale.total | number }}</div>
         </div>
       }
     </div>
 
     <!-- 2. INPUTS: CÓDIGO Y PESO (Fijo, compacto) -->
     <!-- En landscape los ponemos en una fila para ahorrar altura vertical -->
-    <div class="shrink-0 p-2 landscape:p-3 bg-slate-900 border-b border-slate-700/50 shadow-lg z-20">
-        <div class="flex gap-3">
-            <!-- Código -->
-            <div class="flex-1 bg-slate-950 p-2 rounded border border-slate-700 relative">
-                <label class="absolute top-1 left-2 text-[10px] text-blue-400 font-bold uppercase">Código</label>
-                <input
-                    #codeInput
-                    type="text"
-                    inputmode="numeric"
-                    pattern="[0-9]*"
-                    [ngModel]="currentCode() || ''"
-                    (input)="sanitizeInput('code', codeInput.value, 3)"
-                    maxlength="3"
-                    (keydown.enter)="onCodeEnter()"
-                    class="w-full bg-transparent text-center text-3xl font-mono text-white outline-none pt-3 pb-1 border-b border-slate-800 focus:border-blue-500 transition-colors placeholder-slate-800"
-                    placeholder="+"
-                    autofocus
-                />
-            </div>
-            <!-- Peso -->
-            <div class="flex-1 bg-slate-950 p-2 rounded border border-slate-700 relative">
-                <label class="absolute top-1 left-2 text-[10px] text-green-400 font-bold uppercase">Peso</label>
-                 <input
-                    #weightInput
-                    type="text"
-                    inputmode="numeric"
-                    pattern="[0-9]*"
-                    [ngModel]="currentWeight() || ''"
-                    (input)="sanitizeInput('weight', weightInput.value, 5)"
-                    maxlength="5"
-                    (keydown.enter)="onWeightEnter()"
-                    [disabled]="!foundProduct()"
-                    class="w-full bg-transparent text-center text-3xl font-mono text-white outline-none pt-3 pb-1 border-b border-slate-800 focus:border-green-500 transition-colors placeholder-slate-800 disabled:opacity-30"
-                    placeholder="0"
-                />
-            </div>
+    <div
+      class="shrink-0 p-2 landscape:p-3 bg-slate-900 border-b border-slate-700/50 shadow-lg z-20"
+    >
+      <div class="flex gap-3">
+        <!-- Código -->
+        <div class="flex-1 bg-slate-950 p-2 rounded border border-slate-700 relative">
+          <label class="absolute top-1 left-2 text-[10px] text-blue-400 font-bold uppercase"
+            >Código</label
+          >
+          <input
+            #codeInput
+            type="text"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            [ngModel]="currentCode() || ''"
+            (input)="sanitizeInput('code', codeInput.value, 3)"
+            maxlength="3"
+            (keydown.enter)="onCodeEnter()"
+            class="w-full bg-transparent text-center text-3xl font-mono text-white outline-none pt-3 pb-1 border-b border-slate-800 focus:border-blue-500 transition-colors placeholder-slate-800"
+            placeholder="+"
+            autofocus
+          />
         </div>
+        <!-- Peso -->
+        <div class="flex-1 bg-slate-950 p-2 rounded border border-slate-700 relative">
+          @if (!insertingPrice()) {
+          <label class="absolute top-1 left-2 text-[10px] text-green-400 font-bold uppercase"
+            >Peso</label
+          >
+          } @else {
+            <label class="animate-pulse absolute top-1 left-2 text-lg text-green-400 font-bold uppercase"
+            >PRECIO ($)</label
+            >
+          }
+          <input
+            #weightInput
+            type="text"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            [ngModel]="currentWeight() || ''"
+            (input)="sanitizeInput('weight', weightInput.value, 5)"
+            maxlength="5"
+            (keydown.enter)="insertingPrice() ? onPriceEnter() : onWeightEnter()"
+            [disabled]="!insertingPrice() && !foundProduct()"
+            class="w-full bg-transparent text-center text-3xl font-mono text-white outline-none pt-3 pb-1 border-b border-slate-800 focus:border-green-500 transition-colors placeholder-slate-800 disabled:opacity-30"
+            placeholder="0"
+          />
+        </div>
+      </div>
     </div>
 
     <!-- 3. INFO PRODUCTO (FLEXIBLE) -->
     <!-- CLAVE: flex-1 y min-h-0. Esto permite que esta zona se encoja si falta altura, salvando los botones -->
-    <div class="flex-1 min-h-0 flex flex-col justify-center items-center text-center p-2 overflow-hidden bg-gradient-to-b from-slate-900 to-slate-950 relative">
-        @if (foundProduct()) {
-            <!-- Si hay poco espacio, el nombre se cortará con puntos suspensivos (...) -->
-            <div class="w-full px-4">
-                <div class="text-blue-400 font-bold text-xl landscape:text-3xl leading-tight truncate drop-shadow-md">
-                {{ foundProduct()?.name }}
-                </div>
-                <div class="text-slate-500 text-sm landscape:text-lg font-mono mt-1 border-t border-slate-800 inline-block px-4 pt-1">
-                $ {{ foundProduct()?.pricePerKg | number }} / Kg
-                </div>
-            </div>
-        } @else {
-             <div class="text-slate-700 text-lg italic flex flex-col items-center animate-pulse">
-                <span>Esperando ingreso...</span>
-            </div>
-        }
+    <div
+      class="flex-1 min-h-0 flex flex-col justify-center items-center text-center p-2 overflow-hidden bg-gradient-to-b from-slate-900 to-slate-950 relative"
+    >
+      @if (foundProduct()) {
+        <!-- Si hay poco espacio, el nombre se cortará con puntos suspensivos (...) -->
+        <div class="w-full px-4">
+          <div
+            class="text-blue-400 font-bold text-xl landscape:text-3xl leading-tight truncate drop-shadow-md"
+          >
+            {{ foundProduct()?.name }}
+          </div>
+          <div
+            class="text-slate-500 text-sm landscape:text-lg font-mono mt-1 border-t border-slate-800 inline-block px-4 pt-1"
+          >
+            $ {{ foundProduct()?.pricePerKg | number }} / Kg
+          </div>
+        </div>
+      } @else {
+        <div class="text-slate-700 text-lg italic flex flex-col items-center animate-pulse">
+          <span>Esperando ingreso...</span>
+        </div>
+      }
     </div>
 
     <!-- 4. FOOTER (Total y Botones) - FIJO AL FONDO -->
     <!-- shrink-0 asegura que NUNCA se aplasten estos botones -->
-    <div class="shrink-0 bg-slate-950 border-t border-slate-800 p-3 landscape:p-4 flex flex-col gap-3 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">
-        
-        <!-- Total (Diseño compacto horizontal) -->
-        <div class="flex justify-between items-end bg-slate-900/50 p-2 rounded-lg border border-slate-800">
-            <div class="text-left">
-                <div class="text-[10px] text-slate-500 uppercase font-bold">Total a Pagar</div>
-                <div class="text-4xl font-black text-white font-mono leading-none tracking-tight">
-                    ${{ sales()[activeSaleIndex()].total | number }}
-                </div>
-            </div>
-             <div class="text-right pb-1">
-                <div class="text-xs text-slate-400 font-mono">{{ sales()[activeSaleIndex()].items.length }} items</div>
-            </div>
+    <div
+      class="shrink-0 bg-slate-950 border-t border-slate-800 p-3 landscape:p-4 flex flex-col gap-3 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.5)]"
+    >
+      <!-- Total (Diseño compacto horizontal) -->
+      <div
+        class="flex justify-between items-end bg-slate-900/50 p-2 rounded-lg border border-slate-800"
+      >
+        <div class="text-left">
+          <div class="text-[10px] text-slate-500 uppercase font-bold">Total a Pagar</div>
+          <div class="text-4xl font-black text-white font-mono leading-none tracking-tight">
+            ${{ sales()[activeSaleIndex()].total | number }}
+          </div>
         </div>
+        <div class="text-right pb-1">
+          <div class="text-xs text-slate-400 font-mono">
+            {{ sales()[activeSaleIndex()].items.length }} items
+          </div>
+        </div>
+      </div>
 
-        <!-- Botones de Acción -->
-        <div class="grid grid-cols-3 gap-2 h-14 landscape:h-16">
-            <button
-                (click)="cleanCurrentSaleAndClose()"
-                [disabled]="sales()[activeSaleIndex()].items.length === 0"
-                class="col-span-1 bg-slate-800 hover:bg-red-900/50 hover:text-red-200 border border-slate-700 text-slate-400 rounded-lg font-bold text-xs uppercase transition-all disabled:opacity-50"
-            >
-                ANULAR
-            </button>
-            <button
-                (click)="openCheckout()"
-                [disabled]="sales()[activeSaleIndex()].items.length === 0"
-                class="col-span-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-xl shadow-lg shadow-emerald-900/40 active:translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:bg-slate-800 disabled:text-slate-600 disabled:shadow-none"
-            >
-                <span>COBRAR</span>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-            </button>
-        </div>
+      <!-- Botones de Acción -->
+      <div class="grid grid-cols-3 gap-2 h-14 landscape:h-16">
+        <button
+          (click)="cleanCurrentSaleAndClose()"
+          [disabled]="sales()[activeSaleIndex()].items.length === 0"
+          class="col-span-1 bg-slate-800 hover:bg-red-900/50 hover:text-red-200 border border-slate-700 text-slate-400 rounded-lg font-bold text-xs uppercase transition-all disabled:opacity-50"
+        >
+          ANULAR
+        </button>
+        <button
+          (click)="openCheckout()"
+          [disabled]="sales()[activeSaleIndex()].items.length === 0"
+          class="col-span-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-xl shadow-lg shadow-emerald-900/40 active:translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:bg-slate-800 disabled:text-slate-600 disabled:shadow-none"
+        >
+          <span>COBRAR (/)</span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-6 w-6 opacity-60"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M14 5l7 7m0 0l-7 7m7-7H3"
+            />
+          </svg>
+        </button>
+      </div>
     </div>
   </div>
 
   <!-- ============================================================== -->
   <!-- COLUMNA DERECHA (LISTA) - Se mantiene igual -->
   <!-- ============================================================== -->
-  <div class="flex-1 bg-slate-900 relative flex flex-col overflow-hidden landscape:w-[60%] border-l border-slate-800">
+  <div
+    class="flex-1 bg-slate-900 relative flex flex-col overflow-hidden landscape:w-[60%] border-l border-slate-800"
+  >
+    <div class="flex justify-center items-center py-4 w-full text-2xl">
+      MI TIENDA
+    </div>
     <div class="flex-1 overflow-y-auto scroll-smooth pb-20 landscape:pb-4">
       <table class="w-full text-left border-collapse">
-        <thead class="bg-slate-950 text-slate-400 font-bold uppercase text-[10px] landscape:text-xs sticky top-0 z-20 shadow-lg border-b border-slate-800">
+        <thead
+          class="bg-slate-950 text-slate-400 font-bold uppercase text-[10px] landscape:text-xs sticky top-0 z-20 shadow-lg border-b border-slate-800"
+        >
           <tr>
             <th class="p-2 md:p-3 landscape:p-4 w-1/2 tracking-wider">Producto</th>
             <th class="p-2 md:p-3 landscape:p-4 text-right tracking-wider">Peso</th>
@@ -147,13 +192,19 @@
               class="cursor-pointer hover:bg-slate-800 transition-colors focus:outline-none group active:bg-slate-700"
               (keydown)="onRowKeydown($event, $index)"
             >
-              <td class="p-2 landscape:p-4 pl-3 font-medium text-slate-300 group-hover:text-white transition-colors landscape:text-2xl text-sm leading-tight">
+              <td
+                class="p-2 landscape:p-4 pl-3 font-medium text-slate-300 group-hover:text-white transition-colors landscape:text-2xl text-sm leading-tight"
+              >
                 {{ item.product.name }}
               </td>
-              <td class="p-2 landscape:p-4 text-right font-mono text-slate-500 text-sm landscape:text-xl">
+              <td
+                class="p-2 landscape:p-4 text-right font-mono text-slate-500 text-sm landscape:text-xl"
+              >
                 {{ item.weight }}g
               </td>
-              <td class="p-2 landscape:p-4 pr-3 text-right font-bold font-mono text-emerald-400 landscape:text-3xl text-base">
+              <td
+                class="p-2 landscape:p-4 pr-3 text-right font-bold font-mono text-emerald-400 landscape:text-3xl text-base"
+              >
                 $ {{ item.total | number }}
               </td>
             </tr>
@@ -161,7 +212,9 @@
         </tbody>
       </table>
       @if (sales()[activeSaleIndex()].items.length === 0) {
-        <div class="h-64 flex flex-col items-center justify-center text-slate-700 pointer-events-none select-none landscape:scale-125">
+        <div
+          class="h-64 flex flex-col items-center justify-center text-slate-700 pointer-events-none select-none landscape:scale-125"
+        >
           <span class="font-mono text-sm tracking-widest opacity-50">LISTA VACÍA</span>
         </div>
       }
@@ -237,7 +290,7 @@
             <span class="text-slate-400 font-bold uppercase text-sm landscape:text-lg"
               >Total a Pagar</span
             >
-            <br>
+            <br />
             <span
               class="text-4xl landscape:text-6xl font-mono font-bold text-white tracking-tighter"
             >
@@ -337,41 +390,64 @@
 <!-- ========================================== -->
 <!-- ZONA DE IMPRESIÓN -->
 <!-- ========================================== -->
-<div id="printableArea" style="width: 100%; background: white; font-family: Arial, Helvetica, sans-serif; color: #000000 !important;">
-  
+<div
+  id="printableArea"
+  style="
+    width: 100%;
+    background: white;
+    font-family: Arial, Helvetica, sans-serif;
+    color: #000000 !important;
+  "
+>
   @if (lastVoucher()) {
     <!-- ENCABEZADO -->
     <div style="text-align: center; margin-bottom: 15px">
-      <h2 style="margin: 0; font-size: 24px; font-weight: 900; letter-spacing: 1px;">MI TIENDA</h2>
-      <p style="margin: 5px 0 2px 0; font-size: 14px; font-weight: 900;">Calle Falsa 123, Valdivia</p>
-      <p style="margin: 0; font-size: 14px; font-weight: 900;">Tel: +569 8877 6654</p>
+      <h2 style="margin: 0; font-size: 24px; font-weight: 900; letter-spacing: 1px">MI TIENDA</h2>
+      <p style="margin: 5px 0 2px 0; font-size: 14px; font-weight: 900">
+        Calle Falsa 123, Valdivia
+      </p>
+      <p style="margin: 0; font-size: 14px; font-weight: 900">Tel: +569 8877 6654</p>
     </div>
 
     <!-- SEPARADOR GRUESO -->
-    <div style="border-bottom: 3px solid #000000; margin: 10px 0;"></div>
+    <div style="border-bottom: 3px solid #000000; margin: 10px 0"></div>
 
     <!-- TABLA PRODUCTOS -->
-    <table style="width: 100%; font-size: 14px; border-collapse: collapse; font-weight: 900;">
+    <table style="width: 100%; font-size: 14px; border-collapse: collapse; font-weight: 900">
       <thead>
         <tr style="text-align: left">
-          <th style="padding-bottom: 8px; border-bottom: 2px solid #000000; text-transform: uppercase;">Producto</th>
-          <th style="text-align: right; padding-bottom: 8px; border-bottom: 2px solid #000000;">Total</th>
+          <th
+            style="padding-bottom: 8px; border-bottom: 2px solid #000000; text-transform: uppercase"
+          >
+            Producto
+          </th>
+          <th style="text-align: right; padding-bottom: 8px; border-bottom: 2px solid #000000">
+            Total
+          </th>
         </tr>
       </thead>
       <tbody>
         @for (item of lastVoucher()!.items; track $index) {
           <tr>
-            <td style="padding: 8px 0; border-bottom: 1px dashed #000000;">
+            <td style="padding: 8px 0; border-bottom: 1px dashed #000000">
               <!-- Nombre en mayúsculas y grande -->
-              <div style="font-size: 16px; margin-bottom: 4px; text-transform: uppercase;">
+              <div style="font-size: 16px; margin-bottom: 4px; text-transform: uppercase">
                 {{ item.product.name }}
               </div>
               <!-- Detalle del peso un poco más pequeño pero igual de NEGRO y GRUESO -->
-              <div style="font-size: 14px;">
-                {{ item.weight / 1000 }} KG x ${{ item.product.pricePerKg | number:'1.0-0' }}
+              <div style="font-size: 14px">
+                {{ item.weight / 1000 }} KG x ${{ item.product.pricePerKg | number: '1.0-0' }}
               </div>
             </td>
-            <td style="text-align: right; vertical-align: top; padding: 8px 0; font-size: 16px; border-bottom: 1px dashed #000000;">
+            <td
+              style="
+                text-align: right;
+                vertical-align: top;
+                padding: 8px 0;
+                font-size: 16px;
+                border-bottom: 1px dashed #000000;
+              "
+            >
               ${{ item.total | number }}
             </td>
           </tr>
@@ -380,43 +456,47 @@
     </table>
 
     <!-- SEPARADOR GRUESO -->
-    <div style="border-bottom: 3px solid #000000; margin: 15px 0;"></div>
+    <div style="border-bottom: 3px solid #000000; margin: 15px 0"></div>
 
     <!-- TOTALES (Gigantes) -->
-    <table style="width: 100%; font-size: 16px; font-weight: 900; line-height: 1.5;">
-      <tr style="font-size: 22px;">
+    <table style="width: 100%; font-size: 16px; font-weight: 900; line-height: 1.5">
+      <tr style="font-size: 22px">
         <td>TOTAL:</td>
-        <td style="text-align: right;">${{ lastVoucher()!.totalToPay | number }}</td>
+        <td style="text-align: right">${{ lastVoucher()!.totalToPay | number }}</td>
       </tr>
       <!-- Pequeña separación -->
-      <tr><td colspan="2" style="height: 10px;"></td></tr>
-      
+      <tr>
+        <td colspan="2" style="height: 10px"></td>
+      </tr>
+
       <tr>
         <td>EFECTIVO:</td>
-        <td style="text-align: right;">${{ lastVoucher()!.paymentCash | number }}</td>
+        <td style="text-align: right">${{ lastVoucher()!.paymentCash | number }}</td>
       </tr>
       <tr>
         <td>TARJETA:</td>
-        <td style="text-align: right;">${{ lastVoucher()!.paymentCard | number }}</td>
+        <td style="text-align: right">${{ lastVoucher()!.paymentCard | number }}</td>
       </tr>
       <tr>
         <td>VUELTO:</td>
-        <td style="text-align: right;">${{ lastVoucher()!.change | number }}</td>
+        <td style="text-align: right">${{ lastVoucher()!.change | number }}</td>
       </tr>
     </table>
 
     <!-- PIE DE PÁGINA -->
-    <div style="margin-top: 25px; text-align: center; font-size: 12px; font-weight: 900;">
-      <p style="margin: 2px;">VENTA ID: {{ lastVoucher()!.id }}</p>
-      <p style="margin: 2px;">{{ lastVoucher()!.date | date: 'dd/MM/yyyy HH:mm' }}</p>
+    <div style="margin-top: 25px; text-align: center; font-size: 12px; font-weight: 900">
+      <p style="margin: 2px">VENTA ID: {{ lastVoucher()!.id }}</p>
+      <p style="margin: 2px">{{ lastVoucher()!.date | date: 'dd/MM/yyyy HH:mm' }}</p>
 
       <!-- SVG Contenedor -->
-      <div style="margin: 20px 0; display: flex; justify-content: center;">
-         <!-- Asegúrate que tu librería de código de barras genere barras negras -->
-         <svg id="barcode" style="width: 100%; height: 60px; max-width: 250px;"></svg>
+      <div style="margin: 20px 0; display: flex; justify-content: center">
+        <!-- Asegúrate que tu librería de código de barras genere barras negras -->
+        <svg id="barcode" style="width: 100%; height: 60px; max-width: 250px"></svg>
       </div>
-      
-      <p style="margin-top: 15px; font-size: 14px; text-transform: uppercase;">*** Gracias por su compra ***</p>
+
+      <p style="margin-top: 15px; font-size: 14px; text-transform: uppercase">
+        *** Gracias por su compra ***
+      </p>
     </div>
   }
 </div>
