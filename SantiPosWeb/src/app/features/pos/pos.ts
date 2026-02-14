@@ -13,6 +13,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProductService } from '../../core/services/product.service';
+import { ProductSelector } from '../product-selector/ProductSelector/ProductSelector';
 import { Product } from '../../core/models/pos.model';
 import JsBarcode from 'jsbarcode';
 
@@ -44,7 +45,7 @@ interface VoucherData {
 @Component({
   selector: 'app-pos',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ProductSelector],
   templateUrl: './pos.html',
   styles: [
     `
@@ -127,6 +128,8 @@ export class PosComponent {
   @ViewChild('weightInput') weightInput!: ElementRef;
   @ViewChildren('saleRow') saleRows!: QueryList<ElementRef>;
 
+  showProductSelector = signal(false);
+
   constructor() {
     // Efecto para enfocar botón borrar
     effect(() => {
@@ -153,6 +156,7 @@ export class PosComponent {
   currentCode = signal(0);
   currentWeight = signal<number>(0);
   foundProduct = signal<Product | null>(null);
+  products = signal<Product[]>([])
 
   // Estados de Modales
   itemIndexToDelete = signal<number | null>(null);
@@ -209,6 +213,7 @@ export class PosComponent {
 
       // 3. Reset foco
       this.focusCodeInput();
+      
       return;
     }
 
@@ -273,6 +278,17 @@ export class PosComponent {
 
   activateSaleIndex(i: number) {
     if ([0, 1].includes(i)) this.activeSaleIndex.set(i);
+  }
+
+  onSelectorSelect(product: Product) {
+    this.showProductSelector.set(false);
+    const code = parseInt(product.code, 10)
+    this.currentCode.set(code);
+    this.onCodeEnter();
+  }
+
+  onSelectorClose() {
+    this.showProductSelector.set(false);
   }
 
   finalizeSale() {
@@ -381,14 +397,23 @@ export class PosComponent {
     if (field === 'code') {
       this.currentCode.set(clean);
       if (this.codeInput && this.codeInput.nativeElement.value !== cleanValue) {
-        this.codeInput.nativeElement.value = cleanValue; // Usar cleanValue (string) para el input
+        this.codeInput.nativeElement.value = cleanValue; 
       }
+      this.loadProducts(cleanValue);
+      this.showProductSelector.set(true);
     } else {
       this.currentWeight.set(clean);
       if (this.weightInput && this.weightInput.nativeElement.value !== cleanValue) {
-        this.weightInput.nativeElement.value = cleanValue; // CORRECCIÓN: era cleanValue en lugar de clean
+        this.weightInput.nativeElement.value = cleanValue; 
       }
     }
+  }
+
+  loadProducts(query: string) {
+    const all = this.productService.products();
+    if (query.length>0) return all.filter(
+      p => p.code.toString().startsWith(query));
+    return all;
   }
 
   onCodeEnter() {
